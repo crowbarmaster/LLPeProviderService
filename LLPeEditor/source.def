@@ -1,0 +1,10 @@
+LIBRARY LLPeProviderService
+EXPORTS
+?ProcessLibFile@LLPE@@YA_NPEBD@Z
+?ProcessLibDirectory@LLPE@@YA_NPEBD@Z
+?CreateSymbolList@LLPE@@YAXXZ
+?SetEditorFilename@LLPE@@YAXHPEBD@Z
+?GetEditorFilename@LLPE@@YAPEADH@Z
+?GenerateDefinitionFiles@LLPE@@YA_NXZ
+?GetFilteredFunctionListCount@LLPE@@YAHXZ
+?CreateModifiedExecutable@LLPE@@YA_NXZ
