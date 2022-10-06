@@ -203,7 +203,7 @@ namespace LLPE {
 			imported_functions_list imports(get_imported_functions(*LiteLib_PE));
 			for (int i = 0; i < imports.size(); i++) {
 				if (imports[i].get_name() == "bedrock_server_mod.exe") {
-					imports[i].set_name(bedrockExeName);
+					imports[i].set_name(LiteModExeName);
 					std::cout << "[INFO] Modding dll file " << libName << std::endl;
 					saveFlag = true;
 				}
@@ -405,6 +405,7 @@ namespace LLPE {
 
 			rebuild_pe(*OriginalBDS_PE, ModifiedBDS);
 			ModifiedBDS.close();
+			std::cout << "[Info] LiteLoader modifed executable has been created!" << std::endl;
 		}
 		catch (pe_exception e) {
 			std::cout << "[Error][PeEditor] Failed to rebuild " << LiteModExeName << std::endl;
