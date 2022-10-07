@@ -9,4 +9,4 @@ EXPORTS
 ?ProcessLibDirectory@LLPE@@YA_NPEBD@Z
 ?ProcessLibFile@LLPE@@YA_NPEBD@Z
 ?ProcessPlugins@LLPE@@YA_NXZ
-?SetEditorFilename@LLPE@@YAXHPEBD@Z
+?SetEditorFilename@LLPE@@YAXHPEBDH@Z

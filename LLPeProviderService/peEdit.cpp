@@ -135,26 +135,28 @@ namespace LLPE {
 		}
 	}
 
-	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName) {
+	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName, int stringSize) {
+		std::string correctedFilename = std::string(desiredName);
+		correctedFilename = correctedFilename.substr(0, stringSize);
 		switch (fileType)
 		{
 		case LLFileTypes::VanillaExe:
-			bedrockExeName = desiredName;
+			bedrockExeName = correctedFilename;
 			break;
 		case LLFileTypes::LiteModExe:
-			LiteModExeName = desiredName;
+			LiteModExeName = correctedFilename;
 			break;
 		case LLFileTypes::BedrockPdb:
-			bedrockPdbName = desiredName;
+			bedrockPdbName = correctedFilename;
 			break;
 		case LLFileTypes::ApiDef:
-			ApiFileName = desiredName;
+			ApiFileName = correctedFilename;
 			break;
 		case LLFileTypes::VarDef:
-			VarFileName = desiredName;
+			VarFileName = correctedFilename;
 			break;
 		case LLFileTypes::SymbolList:
-			SymFileName = desiredName;
+			SymFileName = correctedFilename;
 			break;
 		default:
 			break;
@@ -194,7 +196,7 @@ namespace LLPE {
 
 		libFile.open(libName, std::ios::in | std::ios::binary);
 		if (!libFile) {
-			std::cout << "[Err] Cannot open " << libName << std::endl;
+			std::cout << "[Error] Cannot open " << libName << std::endl;
 			return false;
 		}
 		bool saveFlag = false;
@@ -204,7 +206,7 @@ namespace LLPE {
 			for (int i = 0; i < imports.size(); i++) {
 				if (imports[i].get_name() == "bedrock_server_mod.exe") {
 					imports[i].set_name(LiteModExeName);
-					std::cout << "[INFO] Modding dll file " << libName << std::endl;
+					std::cout << "[Info] Modding dll file " << libName << std::endl;
 					saveFlag = true;
 				}
 			}
@@ -219,7 +221,7 @@ namespace LLPE {
 
 				outLibFile.open("LiteLoader.tmp", std::ios::out | std::ios::binary | std::ios::trunc);
 				if (!outLibFile) {
-					std::cout << "[Err] Cannot create LiteLoader.tmp!" << std::endl;
+					std::cout << "[Error] Cannot create LiteLoader.tmp!" << std::endl;
 					return false;
 				}
 				std::cout << "[INFO] Writting dll file " << libName << std::endl;
