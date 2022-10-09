@@ -1,22 +1,11 @@
 #include "pch.h"
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <regex>
-#include <set>
 #include <string>
-#include <string_view>
 #include <windows.h>
 
-#include <algorithm>
-#include <fstream>
-#include <unordered_set>
 #include "cxxopts.hpp"
 
 #include "..\LLPeProviderService\PeEdit.h"
 
-#include <windows.h>
-#include <tchar.h>
 using namespace LLPE;
 
 std::wstring str2wstr(const std::string& str, UINT codePage = CP_UTF8) {
