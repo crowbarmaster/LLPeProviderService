@@ -3,10 +3,10 @@ EXPORTS
 ?CreateModifiedExecutable@LLPE@@YA_NXZ
 ?CreateSymbolList@LLPE@@YA_NXZ
 ?GenerateDefinitionFiles@LLPE@@YA_NXZ
-?GetEditorFilename@LLPE@@YAPEADH@Z
+?GetEditorFilename@LLPE@@YAPEBDH@Z
 ?GetFilteredFunctionListCount@LLPE@@YAHXZ
 ?ProcessFunctionList@LLPE@@YA_NXZ
 ?ProcessLibDirectory@LLPE@@YA_NPEBD@Z
 ?ProcessLibFile@LLPE@@YA_NPEBD@Z
 ?ProcessPlugins@LLPE@@YA_NXZ
-?SetEditorFilename@LLPE@@YAXHPEBDH@Z
+?SetEditorFilename@LLPE@@YAXHPEBD@Z
