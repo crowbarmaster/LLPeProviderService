@@ -8,15 +8,12 @@
 #include <set>
 #include <string>
 #include <string_view>
-#include <windows.h>
 
 #include <algorithm>
 #include <fstream>
 #include <unordered_set>
 
 #include "skipFunctions.h"
-
-#include "cxxopts.hpp"
 
 #include <llvm/Demangle/Demangle.h>
 #include <llvm/Demangle/MicrosoftDemangle.h>
@@ -31,13 +28,15 @@
 
 using namespace pe_bliss;
 namespace LLPE {
+	std::deque<PdbSymbol> FunctionList;
+	std::deque<PdbSymbol> FilteredFunctionList;
 	std::string bedrockExeName = "bedrock_server.exe";
 	std::string LiteModExeName = "bedrock_server_mod.exe";
 	std::string bedrockPdbName = "bedrock_server.pdb";
 	std::string ApiFileName = "bedrock_server_api.def";
 	std::string VarFileName = "bedrock_server_var.def";
 	std::string SymFileName = "bedrock_server_symlist.txt";
-	std::deque<PdbSymbol> filteredFunctionList;
+
 
 	std::wstring str2wstr(const std::string& str, UINT codePage = CP_UTF8) {
 		auto len = MultiByteToWideChar(codePage, 0, str.c_str(), -1, nullptr, 0);
@@ -57,9 +56,13 @@ namespace LLPE {
 
 	bool InitializeFunctionList(bool genSymList = false) {
 		std::ofstream BDSSymList;
-		auto FunctionList = loadPDB(str2wstr(bedrockPdbName).c_str());
-		if (FunctionList == NULL) {
-			return false;
+		if (FunctionList.size() == 0) {
+			FunctionList = *loadPDB(str2wstr(bedrockPdbName).c_str());
+			if (FunctionList.size() == 0) {
+				std::cout << "[Error] Could not open PDB!" << std::endl;
+				std::cout << "PDB name: " << bedrockPdbName << std::endl;
+				return false;
+			}
 		}
 		if (genSymList) {
 			std::cout << "[Info] Generating symbol list, please wait..." << std::endl;
@@ -68,56 +71,57 @@ namespace LLPE {
 				std::cout << "[Error][PeEditor] Cannot create " << SymFileName << std::endl;
 				return false;
 			}
-		}
-		else if (filteredFunctionList.size() == 0) {
-			std::cout << "[Info] Filtering PDB symbols, please wait..." << std::endl;
-		}
-		if (filteredFunctionList.size() == 0 || genSymList) {
-			for (const auto& fn : *FunctionList) {
-				bool keepFunc = true;
-				if (genSymList) {
-					char tmp[11];
-					sprintf_s(tmp, 11, "[%08d]", fn.Rva);
 
-					auto demangledName = llvm::microsoftDemangle(
-						fn.Name.c_str(), nullptr, nullptr, nullptr, nullptr,
-						(llvm::MSDemangleFlags)(llvm::MSDF_NoCallingConvention | llvm::MSDF_NoAccessSpecifier));
-					if (demangledName) {
-						BDSSymList << demangledName << std::endl;
-						free(demangledName);
-					}
-					BDSSymList << tmp << fn.Name << std::endl << std::endl;
-					continue;
+			for (const auto& fn : FunctionList) {
+				bool keepFunc = true;
+				char tmp[11];
+				sprintf_s(tmp, 11, "[%08d]", fn.Rva);
+
+				auto demangledName = llvm::microsoftDemangle(
+					fn.Name.c_str(), nullptr, nullptr, nullptr, nullptr,
+					(llvm::MSDemangleFlags)(llvm::MSDF_NoCallingConvention | llvm::MSDF_NoAccessSpecifier));
+				if (demangledName) {
+					BDSSymList << demangledName << std::endl;
+					free(demangledName);
 				}
-				if (fn.Name[0] != '?') {
-					keepFunc = false;
-				}
-				for (const std::string a : LLTool::SkipPerfix) {
-					if (fn.Name.starts_with(a)) {
-						keepFunc = false;
-					}
-				}
-				for (const auto& reg : LLTool::SkipRegex) {
-					std::smatch result;
-					if (std::regex_match(fn.Name, result, reg)) {
-						keepFunc = false;
-					}
-				}
-				if (keepFunc && !genSymList) {
-					filteredFunctionList.push_back(fn);
-				}
+				BDSSymList << tmp << fn.Name << std::endl << std::endl;
 			}
-		}
-		if (BDSSymList.is_open()) {
 			try {
 				BDSSymList.flush();
 				BDSSymList.close();
 				std::cout << "[Info] [DEV]Symbol List File              Created" << std::endl;
+				return true;
 			}
 			catch (...) {
 				std::cout << "[Error] Failed to Create " << SymFileName << std::endl;
+				return false;
 			}
 		}
+		if (FilteredFunctionList.size() == 0) {
+		std::cout << "[Info] Filtering PDB symbols, please wait..." << std::endl;
+			for (const auto& fn : FunctionList) {
+			bool keepFunc = true;
+			if (fn.Name[0] != '?') {
+				keepFunc = false;
+			}
+			for (const std::string a : LLTool::SkipPerfix) {
+				if (fn.Name.starts_with(a)) {
+					keepFunc = false;
+				}
+			}
+			for (const auto& reg : LLTool::SkipRegex) {
+				std::smatch result;
+				if (std::regex_match(fn.Name, result, reg)) {
+					keepFunc = false;
+				}
+			}
+			if (keepFunc) {
+				FilteredFunctionList.push_back(fn);
+			}
+		}
+			return true;
+		}
+		return true;
 	}
 
 	bool LLPEAPI ProcessFunctionList() {
@@ -133,59 +137,59 @@ namespace LLPE {
 			std::cout << "[Error][PeEditor] Error processing function list from PDB!" << std::endl;
 			return false;
 		}
+		return true;
 	}
 
-	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName, int stringSize) {
-		std::string correctedFilename = std::string(desiredName);
-		correctedFilename = correctedFilename.substr(0, stringSize);
+	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName) {
+		std::string filename = std::string(desiredName);
 		switch (fileType)
 		{
 		case LLFileTypes::VanillaExe:
-			bedrockExeName = correctedFilename;
+			bedrockExeName = filename;
 			break;
 		case LLFileTypes::LiteModExe:
-			LiteModExeName = correctedFilename;
+			LiteModExeName = filename;
 			break;
 		case LLFileTypes::BedrockPdb:
-			bedrockPdbName = correctedFilename;
+			bedrockPdbName = filename;
 			break;
 		case LLFileTypes::ApiDef:
-			ApiFileName = correctedFilename;
+			ApiFileName = filename;
 			break;
 		case LLFileTypes::VarDef:
-			VarFileName = correctedFilename;
+			VarFileName = filename;
 			break;
 		case LLFileTypes::SymbolList:
-			SymFileName = correctedFilename;
+			SymFileName = filename;
 			break;
 		default:
 			break;
 		}
 	}
 
-	extern LLPEAPI char* GetEditorFilename(int fileType) {
+	extern LLPEAPI const char* GetEditorFilename(int fileType) {
 		switch (fileType)
 		{
 		case LLFileTypes::VanillaExe:
-			return (char*)bedrockExeName.c_str();
+			return bedrockExeName.c_str();
 			break;
 		case LLFileTypes::LiteModExe:
-			return (char*)LiteModExeName.c_str();
+			return LiteModExeName.c_str();
 			break;
 		case LLFileTypes::BedrockPdb:
-			return (char*)bedrockPdbName.c_str();
+			return bedrockPdbName.c_str();
 			break;
 		case LLFileTypes::ApiDef:
-			return (char*)ApiFileName.c_str();
+			return ApiFileName.c_str();
 			break;
 		case LLFileTypes::VarDef:
-			return (char*)VarFileName.c_str();
+			return VarFileName.c_str();
 			break;
 		case LLFileTypes::SymbolList:
-			return (char*)SymFileName.c_str();
+			return SymFileName.c_str();
 			break;
 		default:
-			return (char*)"";
+			return NULL;
 			break;
 		}
 	}
@@ -274,10 +278,10 @@ namespace LLPE {
 	}
 
 	bool LLPEAPI GenerateDefinitionFiles() {
+		std::cout << "[Info] Generating definition files... Please wait." << std::endl;
 		std::ofstream BDSDef_API;
 		std::ofstream BDSDef_VAR;
-		if(InitializeFunctionList()) {
-			std::cout << "[Error] Could not process symbols from PDB!" << std::endl;
+		if(!InitializeFunctionList()) {
 			return false;
 		}
 
@@ -294,7 +298,7 @@ namespace LLPE {
 			return false;
 		}
 		BDSDef_VAR << "LIBRARY " << bedrockExeName << "\nEXPORTS\n";
-		for (auto& fn : filteredFunctionList) {
+		for (auto& fn : FilteredFunctionList) {
 			if (fn.IsFunction) {
 				BDSDef_API << "\t" << fn.Name << "\n";
 			}
@@ -330,7 +334,6 @@ namespace LLPE {
 		int                       ApiDefFileCount = 1;
 
 		if (!InitializeFunctionList()) {
-			std::cout << "[Error] Could not process symbols from PDB!" << std::endl;
 			return false;
 		}
 		OriginalBDS.open(bedrockExeName, std::ios::in | std::ios::binary);
@@ -354,7 +357,7 @@ namespace LLPE {
 		}
 		ExportLimit = get_export_ordinal_limits(OriginalBDS_ExportFunc).second;
 
-		for (const auto& fn : filteredFunctionList) {
+		for (const auto& fn : FilteredFunctionList) {
 			try {
 				if (!fn.IsFunction) {
 					exported_function func;
@@ -424,12 +427,11 @@ namespace LLPE {
 	}
 
 	int LLPEAPI GetFilteredFunctionListCount() {
-		if (filteredFunctionList.size() == 0) {
+		if (FilteredFunctionList.size() == 0) {
 			if (InitializeFunctionList()) {
-				std::cout << "[Error] Could not process symbols from PDB!" << std::endl;
 				return 0;
 			}
 		}
-		return (int)filteredFunctionList.size();
+		return (int)FilteredFunctionList.size();
 	}
 }
