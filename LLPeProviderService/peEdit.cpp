@@ -32,11 +32,6 @@ namespace LLPE {
 	std::deque<PdbSymbol> FilteredFunctionList;
 	std::string bedrockExeName = "bedrock_server.exe";
 	std::string LiteModExeName = "bedrock_server_mod.exe";
-	std::string bedrockPdbName = "bedrock_server.pdb";
-	std::string ApiFileName = "bedrock_server_api.def";
-	std::string VarFileName = "bedrock_server_var.def";
-	std::string SymFileName = "bedrock_server_symlist.txt";
-
 
 	std::wstring str2wstr(const std::string& str, UINT codePage = CP_UTF8) {
 		auto len = MultiByteToWideChar(codePage, 0, str.c_str(), -1, nullptr, 0);
@@ -54,18 +49,20 @@ namespace LLPE {
 			system("pause");
 	}
 
-	bool InitializeFunctionList(bool genSymList = false) {
+	bool InitializeFunctionList(std::string pdbName, std::string symbolName, bool genSymList = false) {
 		std::ofstream BDSSymList;
+		std::string bedrockPdbName = pdbName != "" ? pdbName : "bedrock_server.pdb";
 		if (FunctionList.size() == 0) {
-			FunctionList = *loadPDB(str2wstr(bedrockPdbName).c_str());
+			FunctionList = *loadPDB(str2wstr(pdbName).c_str());
 			if (FunctionList.size() == 0) {
 				std::cout << "[Error] Could not open PDB!" << std::endl;
-				std::cout << "PDB name: " << bedrockPdbName << std::endl;
+				std::cout << "PDB name: " << pdbName << std::endl;
 				return false;
 			}
 		}
 		if (genSymList) {
 			std::cout << "[Info] Generating symbol list, please wait..." << std::endl;
+			std::string SymFileName =  symbolName != "" ? symbolName : "bedrock_server_symlist.txt";
 			BDSSymList.open(SymFileName, std::ios::ate | std::ios::out);
 			if (!BDSSymList) {
 				std::cout << "[Error][PeEditor] Cannot create " << SymFileName << std::endl;
@@ -124,77 +121,25 @@ namespace LLPE {
 		return true;
 	}
 
-	bool LLPEAPI ProcessFunctionList() {
-		if (!InitializeFunctionList()) {
+	bool LLPEAPI ProcessFunctionList(const char* pdbFile = "") {
+		std::string pdbStr = std::string(pdbFile);
+		if (!InitializeFunctionList(pdbStr, "")) {
 			std::cout << "[Error][PeEditor] Error processing function list from PDB!" << std::endl;
 			return false;
 		}
 		return true;
 	}
 
-	bool LLPEAPI CreateSymbolList() {
-		if (!InitializeFunctionList(true)) {
+	bool LLPEAPI CreateSymbolList(const char* symFileName, const char* pdbFile) {
+		if (!InitializeFunctionList(pdbFile, symFileName, true)) {
 			std::cout << "[Error][PeEditor] Error processing function list from PDB!" << std::endl;
 			return false;
 		}
 		return true;
 	}
 
-	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName) {
-		std::string filename = std::string(desiredName);
-		switch (fileType)
-		{
-		case LLFileTypes::VanillaExe:
-			bedrockExeName = filename;
-			break;
-		case LLFileTypes::LiteModExe:
-			LiteModExeName = filename;
-			break;
-		case LLFileTypes::BedrockPdb:
-			bedrockPdbName = filename;
-			break;
-		case LLFileTypes::ApiDef:
-			ApiFileName = filename;
-			break;
-		case LLFileTypes::VarDef:
-			VarFileName = filename;
-			break;
-		case LLFileTypes::SymbolList:
-			SymFileName = filename;
-			break;
-		default:
-			break;
-		}
-	}
-
-	extern LLPEAPI const char* GetEditorFilename(int fileType) {
-		switch (fileType)
-		{
-		case LLFileTypes::VanillaExe:
-			return bedrockExeName.c_str();
-			break;
-		case LLFileTypes::LiteModExe:
-			return LiteModExeName.c_str();
-			break;
-		case LLFileTypes::BedrockPdb:
-			return bedrockPdbName.c_str();
-			break;
-		case LLFileTypes::ApiDef:
-			return ApiFileName.c_str();
-			break;
-		case LLFileTypes::VarDef:
-			return VarFileName.c_str();
-			break;
-		case LLFileTypes::SymbolList:
-			return SymFileName.c_str();
-			break;
-		default:
-			return NULL;
-			break;
-		}
-	}
-
-	bool LLPEAPI ProcessLibFile(const char* libName) {
+	bool LLPEAPI ProcessLibFile(const char* libName, const char* modExeName) {
+		std::string LiteModExe = modExeName != "" ? std::string(modExeName) : "bedrock_server_mod.exe";
 		std::ifstream libFile;
 		std::ofstream outLibFile;
 
@@ -209,7 +154,7 @@ namespace LLPE {
 			imported_functions_list imports(get_imported_functions(*LiteLib_PE));
 			for (int i = 0; i < imports.size(); i++) {
 				if (imports[i].get_name() == "bedrock_server_mod.exe") {
-					imports[i].set_name(LiteModExeName);
+					imports[i].set_name(std::string(LiteModExe));
 					std::cout << "[Info] Modding dll file " << libName << std::endl;
 					saveFlag = true;
 				}
@@ -245,7 +190,8 @@ namespace LLPE {
 		return true;
 	}
 
-	bool LLPEAPI ProcessLibDirectory(const char* directoryName) {
+	bool LLPEAPI ProcessLibDirectory(const char* directoryName, const char* modExeName = "") {
+		std::string LiteModExe = modExeName != "" ? modExeName : "bedrock_server_mod.exe";
 		std::filesystem::directory_iterator directory(directoryName);
 
 		for (auto& file : directory) {
@@ -265,23 +211,27 @@ namespace LLPE {
 
 			std::string pluginName;
 			pluginName.append(directoryName).append("\\").append(name);
-			if (!ProcessLibFile(pluginName.c_str())) return false;
+			if (!ProcessLibFile(pluginName.c_str(), LiteModExe.c_str())) return false;
 		}
 		return true;
 	}
 
-	bool LLPEAPI ProcessPlugins() {
-		if (ProcessLibFile("LiteLoader.dll") && ProcessLibDirectory("plugins") && ProcessLibDirectory("plugins\\LiteLoader")) {
+	bool LLPEAPI ProcessPlugins(const char* modExeName) {
+		std::string LiteModExeName = modExeName != "" ? modExeName : "bedrock_server_mod.exe";
+		if (ProcessLibFile("LiteLoader.dll", modExeName) && ProcessLibDirectory("plugins", modExeName) && ProcessLibDirectory("plugins\\LiteLoader", modExeName)) {
 			return true;
 		}
 		return false;
 	}
 
-	bool LLPEAPI GenerateDefinitionFiles() {
+	bool LLPEAPI GenerateDefinitionFiles(const char* pdbName, const char* apiName, const char* varName) {
 		std::cout << "[Info] Generating definition files... Please wait." << std::endl;
+		std::string ApiFileName = apiName != "" ? std::string(apiName) : "bedrock_server_api.def";
+		std::string VarFileName = varName != "" ? std::string(varName) : "bedrock_server_var.def";
+		std::string PdbFileName = pdbName != "" ? std::string(pdbName) : "bedrock_server.pdb";
 		std::ofstream BDSDef_API;
 		std::ofstream BDSDef_VAR;
-		if(!InitializeFunctionList()) {
+		if(!InitializeFunctionList(PdbFileName, "")) {
 			return false;
 		}
 
@@ -297,7 +247,7 @@ namespace LLPE {
 			std::cout << "[Error][PeEditor] Failed to create " << VarFileName << std::endl;
 			return false;
 		}
-		BDSDef_VAR << "LIBRARY " << bedrockExeName << "\nEXPORTS\n";
+		BDSDef_VAR << "LIBRARY " << "bedrock_server.exe" << "\nEXPORTS\n";
 		for (auto& fn : FilteredFunctionList) {
 			if (fn.IsFunction) {
 				BDSDef_API << "\t" << fn.Name << "\n";
@@ -319,11 +269,12 @@ namespace LLPE {
 		return true;
 	}
 
-	bool LLPEAPI CreateModifiedExecutable() {
+	bool LLPEAPI CreateModifiedExecutable(const char* bedrockName, const char* liteModName, const char* pdbName) {
+		std::string bedrockExeName = bedrockName != "" ? bedrockName : "bedrock_server.exe";
+		std::string liteModExeName = liteModName != "" ? liteModName : "bedrock_server_mod.exe";
+		std::string bedrockPdbName = pdbName != "" ? pdbName : "bedrock_server.pdb";
 		std::ifstream             OriginalBDS;
-		std::ifstream			  LiteLib;
 		std::ofstream             ModifiedBDS;
-		std::ofstream             ModdedLiteLib;
 		pe_base* OriginalBDS_PE = nullptr;
 		pe_base* LiteLib_PE = nullptr;
 		export_info                OriginalBDS_ExportInf;
@@ -333,7 +284,7 @@ namespace LLPE {
 		int                       ApiDefCount = 1;
 		int                       ApiDefFileCount = 1;
 
-		if (!InitializeFunctionList()) {
+		if (!InitializeFunctionList(bedrockPdbName, "")) {
 			return false;
 		}
 		OriginalBDS.open(bedrockExeName, std::ios::in | std::ios::binary);
@@ -341,7 +292,7 @@ namespace LLPE {
 			std::cout << "[Error][PeEditor] Cannot open bedrock_server.exe" << std::endl;
 			return false;
 		}
-		ModifiedBDS.open(LiteModExeName, std::ios::out | std::ios::binary | std::ios::trunc);
+		ModifiedBDS.open(liteModExeName, std::ios::out | std::ios::binary | std::ios::trunc);
 		if (!ModifiedBDS) {
 			std::cout << "[Error][PeEditor] Cannot open " << LiteModExeName << std::endl;
 			return false;
@@ -411,24 +362,28 @@ namespace LLPE {
 			rebuild_pe(*OriginalBDS_PE, ModifiedBDS);
 			ModifiedBDS.close();
 			std::cout << "[Info] LiteLoader modifed executable has been created!" << std::endl;
+			return true;
 		}
 		catch (pe_exception e) {
 			std::cout << "[Error][PeEditor] Failed to rebuild " << LiteModExeName << std::endl;
 			std::cout << "[Error][pe_bliss] " << e.what() << std::endl;
 			ModifiedBDS.close();
 			std::filesystem::remove(std::filesystem::path(LiteModExeName));
+			return false;
 		}
 		catch (...) {
 			std::cout << "[Error][PeEditor] Failed to rebuild " << LiteModExeName << " with unk err" << std::endl;
 			ModifiedBDS.close();
 			std::filesystem::remove(std::filesystem::path(LiteModExeName));
+			return false;
 		}
 		return true;
 	}
 
-	int LLPEAPI GetFilteredFunctionListCount() {
+	int LLPEAPI GetFilteredFunctionListCount(const char* pdbName) {
+		std::string bedrockPdbName = pdbName != "" ? pdbName : "bedrock_server.pdb";
 		if (FilteredFunctionList.size() == 0) {
-			if (InitializeFunctionList()) {
+			if (InitializeFunctionList(pdbName, "")) {
 				return 0;
 			}
 		}

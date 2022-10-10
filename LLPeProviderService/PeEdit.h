@@ -3,14 +3,12 @@
 #include <Windows.h>
 
 namespace LLPE {
-	bool LLPEAPI ProcessFunctionList();
-	bool LLPEAPI CreateSymbolList();
-	void LLPEAPI SetEditorFilename(int fileType, const char* desiredName);
-	extern LLPEAPI const char* GetEditorFilename(int fileType);
-	bool LLPEAPI ProcessLibFile(const char* libName);
-	bool LLPEAPI ProcessLibDirectory(const char* directoryName);
-	bool LLPEAPI ProcessPlugins();
-	bool LLPEAPI GenerateDefinitionFiles();
-	bool LLPEAPI CreateModifiedExecutable();
-	int LLPEAPI GetFilteredFunctionListCount();
+	bool LLPEAPI ProcessFunctionList(const char* pdbFile);
+	bool LLPEAPI CreateSymbolList(const char* symFileName, const char* pdbFile);
+	bool LLPEAPI ProcessLibFile(const char* libName, const char* modExeName);
+	bool LLPEAPI ProcessLibDirectory(const char* directoryName, const char* modExeName);
+	bool LLPEAPI ProcessPlugins(const char* modExeName);
+	bool LLPEAPI GenerateDefinitionFiles(const char* pdbName, const char* apiName, const char* varName);
+	bool LLPEAPI CreateModifiedExecutable(const char* bedrockName, const char* liteModName, const char* pdbName);
+	int  LLPEAPI GetFilteredFunctionListCount(const char* pdbName);
 }

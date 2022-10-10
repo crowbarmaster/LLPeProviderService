@@ -65,12 +65,12 @@ int main(int argc, char** argv) {
 	bool mShouldPause = !optionsResult["noPause"].as<bool>();
 	bool mPluginsOnly = optionsResult["pluginsOnly"].as<bool>();
 	
-	SetEditorFilename((int)LLFileTypes::VanillaExe, optionsResult["exe"].as<std::string>().c_str());
-	SetEditorFilename((int)LLFileTypes::LiteModExe, optionsResult["out"].as<std::string>().c_str());
-	SetEditorFilename((int)LLFileTypes::BedrockPdb, optionsResult["pdb"].as<std::string>().c_str());
-	SetEditorFilename((int)LLFileTypes::ApiDef, optionsResult["defApi"].as<std::string>().c_str());
-	SetEditorFilename((int)LLFileTypes::VarDef, optionsResult["defVar"].as<std::string>().c_str());
-	SetEditorFilename((int)LLFileTypes::SymbolList, optionsResult["sym"].as<std::string>().c_str());
+	std::string mExeFile = optionsResult["exe"].as<std::string>();
+	std::string mOutputExeFile = optionsResult["out"].as<std::string>();
+	std::string mPdbFile = optionsResult["pdb"].as<std::string>();
+	std::string mDefApiFile = optionsResult["defApi"].as<std::string>();
+	std::string mDefVarFile = optionsResult["defVar"].as<std::string>();
+	std::string mSymFile = optionsResult["sym"].as<std::string>();
 
 	std::cout << "[Info] LiteLoader ToolChain PEEditor" << std::endl;
 	std::cout << "[Info] BuildDate CST " __TIMESTAMP__ << std::endl;
@@ -78,24 +78,24 @@ int main(int argc, char** argv) {
 	std::cout << "[Info] Gen bedrock_server defs           [DEV] " << std::boolalpha << std::string(mGenDevDef ? " true" : "false") << std::endl;
 	std::cout << "[Info] Gen SymList file                  [DEV] " << std::boolalpha << std::string(mGenSymbolList ? " true" : "false") << std::endl;
 	std::cout << "[Info] Fix Plugins                       [DEV] " << std::boolalpha << std::string(mPluginsOnly ? " true" : "false") << std::endl;
-	std::cout << "[Info] Output: " << GetEditorFilename(LLFileTypes::LiteModExe) << std::endl;
+	std::cout << "[Info] Output: " << mOutputExeFile << std::endl;
 
 	if (mGenSymbolList) {
-		if (!CreateSymbolList()) {
+		if (!CreateSymbolList(mSymFile.c_str(), mPdbFile.c_str())) {
 			Pause(mShouldPause);
 			return -1;
 		}
 	}
-	if(!ProcessFunctionList()) {
+	if(!ProcessFunctionList(mPdbFile.c_str())) {
 		Pause(mShouldPause);
 		return -1;
 	}
 
-	std::cout << "[Info] Loaded " << GetFilteredFunctionListCount() << " Symbols" << std::endl;
+	std::cout << "[Info] Loaded " << GetFilteredFunctionListCount(mPdbFile.c_str()) << " Symbols" << std::endl;
 	std::cout << "[Info] Generating BDS. Please wait for few minutes" << std::endl;
 
 	if (mPluginsOnly) {
-		if (ProcessLibFile("LiteLoader.dll") && ProcessLibDirectory("plugins") && ProcessLibDirectory("plugins\\LiteLoader")) {
+		if (ProcessLibFile("LiteLoader.dll", mOutputExeFile.c_str()) && ProcessLibDirectory("plugins", mOutputExeFile.c_str()) && ProcessLibDirectory("plugins\\LiteLoader", mOutputExeFile.c_str())) {
 			std::cout << "[Info] Plugins have been fixed." << std::endl;
 			Pause(mShouldPause);
 			return 0;
@@ -108,10 +108,10 @@ int main(int argc, char** argv) {
 	}
 	if (mGenDevDef) {
 		std::cout << "[Info] Generating definiton files, please wait..." << std::endl;
-		GenerateDefinitionFiles();
+		GenerateDefinitionFiles(mPdbFile.c_str(), mDefApiFile.c_str(), mDefVarFile.c_str());
 	}
 	if (mGenModBDS) {
-		if (CreateModifiedExecutable()) {
+		if (CreateModifiedExecutable(mExeFile.c_str(), mOutputExeFile.c_str(), mPdbFile.c_str())) {
 			std::cout << "[Info] Modified executable created successfully!" << std::endl;
 		}
 	}
