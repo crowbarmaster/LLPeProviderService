@@ -86,14 +86,6 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 	}
-	if(!ProcessFunctionList(mPdbFile.c_str())) {
-		Pause(mShouldPause);
-		return -1;
-	}
-
-	std::cout << "[Info] Loaded " << GetFilteredFunctionListCount(mPdbFile.c_str()) << " Symbols" << std::endl;
-	std::cout << "[Info] Generating BDS. Please wait for few minutes" << std::endl;
-
 	if (mPluginsOnly) {
 		if (ProcessLibFile("LiteLoader.dll", mOutputExeFile.c_str()) && ProcessLibDirectory("plugins", mOutputExeFile.c_str()) && ProcessLibDirectory("plugins\\LiteLoader", mOutputExeFile.c_str())) {
 			std::cout << "[Info] Plugins have been fixed." << std::endl;
@@ -106,6 +98,14 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 	}
+	if (!ProcessFunctionList(mPdbFile.c_str())) {
+		Pause(mShouldPause);
+		return -1;
+	}
+
+	std::cout << "[Info] Loaded " << GetFilteredFunctionListCount(mPdbFile.c_str()) << " Symbols" << std::endl;
+	std::cout << "[Info] Generating BDS. Please wait for few minutes" << std::endl;
+
 	if (mGenDevDef) {
 		std::cout << "[Info] Generating definiton files, please wait..." << std::endl;
 		GenerateDefinitionFiles(mPdbFile.c_str(), mDefApiFile.c_str(), mDefVarFile.c_str());
